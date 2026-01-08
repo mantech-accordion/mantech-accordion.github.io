@@ -14,7 +14,7 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: Accordion
-description: 아코디언v2 교육
+description: 아코디언 교육
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://mantech-accordion.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 
