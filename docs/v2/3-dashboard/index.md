@@ -3,7 +3,7 @@ layout: default
 title: 3. 대시보드
 has_children: true
 parent: 아코디언 v2
-nav_order: 3
+nav_order: 4
 permalink: /docs/v2/3-dashboard
 ---
 
