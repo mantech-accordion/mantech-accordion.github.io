@@ -10,4 +10,4 @@ permalink: /docs/trbshoot
 
 아코디언 화면 상에서 에러 메시지 및 모니터링 절차와 같은 부분에 대한 내용을 작성합니다.
 
-![troubleshoot_diagram.jpg](/assets/images/troubleshoot/troubleshoot_diagram.jpg){: width="1000" }
+![troubleshoot_diagram.jpg](/assets/images/appx/troubleshoot/troubleshoot_diagram.jpg){: width="1000" }

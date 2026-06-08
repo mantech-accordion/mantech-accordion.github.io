@@ -20,7 +20,7 @@ nav_order: 2
 
 **회원가입 및 로그인을 한 다음, 카테고리에 맞는 Docs들을 확인하실 수 있습니다.**
 
-![tech_menu](/assets/images/support/tech_menu.png){: width="1200" }
+![tech_menu](/assets/images/appx/support/tech_menu.png){: width="1200" }
 
 
 **카테고리 설명**
@@ -46,6 +46,6 @@ nav_order: 2
 
 (문의할 문서 최하단에 있는 문의 사항 E-mail 전송 클릭)
 
-![tech_email_sendmail_1](/assets/images/support/tech_email_sendmail_1.png){: width="1200" }
+![tech_email_sendmail_1](/assets/images/appx/support/tech_email_sendmail_1.png){: width="1200" }
 
-![tech_email_sendmail_2](/assets/images/support/tech_email_sendmail_2.png){: width="500" }
+![tech_email_sendmail_2](/assets/images/appx/support/tech_email_sendmail_2.png){: width="500" }

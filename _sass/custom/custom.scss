@@ -1,0 +1,11 @@
+/* Custom Callout Styles */
+.callout-warning {
+  border-left: 4px solid #f5a623;
+  padding: 1em 1.5em;
+  background-color: #fffdf5;
+  margin: 1.5em 0;
+  color: inherit;
+}
+.callout-warning p:last-child {
+  margin-bottom: 0;
+}

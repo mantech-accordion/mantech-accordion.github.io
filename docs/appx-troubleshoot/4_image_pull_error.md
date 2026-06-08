@@ -16,11 +16,6 @@ nav_order: 4
 
 ---
 
-<div class="code-example" markdown="1">
-Cluster
-{: .label .label-green }
-</div>
-
 ## ImagePullBackOff & ErrImagePull 상태란?
 
 레지스트리에서 컨테이너 이미지를 가져오려고 시도했지만, 실패했기 때문에 pod를 실행할 수 없는 경우에 발생하게 됩니다.

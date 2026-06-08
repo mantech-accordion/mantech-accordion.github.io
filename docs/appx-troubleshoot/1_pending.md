@@ -16,12 +16,6 @@ nav_order: 1
 
 ---
 
-<div class="code-example" markdown="1">
-Cluster
-{: .label .label-blue }
-</div>
-
-
 ## Pending 상태란?
 
 Pod가 생성되지 못하고 항상 Pending 상태입니다

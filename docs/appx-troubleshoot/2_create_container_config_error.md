@@ -16,12 +16,6 @@ nav_order: 2
 
 ---
 
-<div class="code-example" markdown="1">
-Cluster
-{: .label .label-blue }
-</div>
-
-
 ## CreateContainerError 상태란?
 
 일반적으로 Secret 또는 ConfigMap이 누락된 경우 발생합니다.

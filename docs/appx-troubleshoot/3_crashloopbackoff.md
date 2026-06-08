@@ -16,11 +16,6 @@ nav_order: 3
 
 ---
 
-<div class="code-example" markdown="1">
-Cluster
-{: .label .label-blue }
-</div>
-
 ## CrashLoopBackOff 상태란?
 
 Pod가 기동 중에 컨테이너 실행 오류가 발생하면  crashloCrashLoopBackOff 오류가 발생합니다.
@@ -41,12 +36,12 @@ Pod가 기동 중에 컨테이너 실행 오류가 발생하면  crashloCrashLoo
 
 - Pod 상태 확인
 
-![3_crashloopbackoff_pod_status.png](/assets/images/troubleshoot/3_crashloopbackoff_pod_status.png){: width="800" }
+![3_crashloopbackoff_pod_status.png](/assets/images/appx/troubleshoot/3_crashloopbackoff_pod_status.png){: width="800" }
 
 
 - Pod 이벤트 확인
 
-![3_crashloopbackoff_event.png](/assets/images/troubleshoot/3_crashloopbackoff_event.png){: width="800" }
+![3_crashloopbackoff_event.png](/assets/images/appx/troubleshoot/3_crashloopbackoff_event.png){: width="800" }
 
 
 - pod 다운 전/후 로그 확인 : 컨테이너의 이미지 종류와 기동 환경에 따라 매우 다양하게 발생될 수 있으므로, 애플리케이션 로그를 확인하여 조치

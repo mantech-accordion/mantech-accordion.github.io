@@ -1,0 +1,54 @@
+/* 방화벽 문서 작성용 css 스타일 */
+.tech-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 25px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tech-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333333;
+}
+
+.tech-table th {
+  background-color: #4a5568; /* 헤더: 짙은 네이비/회색 */
+  color: #ffffff;
+  font-weight: 600;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e0;
+  text-align: center;
+}
+
+.tech-table td {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  color: #000000;
+  vertical-align: middle;
+}
+
+.tech-table td:nth-child(1),
+.tech-table td:nth-child(2),
+.tech-table td:nth-child(3),
+.tech-table td:nth-child(4) {
+  text-align: center;
+}
+
+.tech-table tbody tr:nth-child(even) {
+  background-color: #f7fafc;
+}
+
+.tech-table tbody tr:hover {
+  background-color: #edf2f7;
+}
+
+/* 인라인 강조 서식 */
+.tech-table .badge-orange { color: #dd6b20; font-weight: bold; }
+.tech-table .badge-blue { color: #2b6cb0; font-weight: bold; }
+.tech-table .note-text { color: #718096; font-size: 12px; display: block; margin-top: 4px; }
+.tech-table .badge-red { color: #ff0000; font-weight: bold; }
+.tech-table .badge-green { color: #289128; font-weight: bold; }

@@ -1,0 +1,3734 @@
+apiVersion: ui.accordions.co.kr/v1beta1
+kind: ClusterDashboard
+metadata:
+  annotations:
+    ui.accordions.co.kr/display-name: 샘플 AI 클러스터 대시보드
+  name: sample-ai-cluster-dashbaord
+spec:
+  apis: []
+  globalValues:
+    end: now
+    refreshTime: "off"
+    start: 5m
+    step: 90
+  tabs: []
+  widgets:
+  - metadata:
+      name: header
+    spec:
+      config:
+        h: 4
+        w: 12
+        xaxis: 0
+        yaxis: 0
+      valueSchema:
+        properties:
+          header:
+            properties:
+              badgeText:
+                type: string
+              text:
+                type: string
+            x-ui-format: badge
+          redirectButton:
+            properties:
+              href:
+                type: string
+              text:
+                type: string
+            type: object
+            x-ui-format: redirect-button
+          refreshButton:
+            properties:
+              refreshTime:
+                type: string
+              showButtonSchema:
+                default: true
+                type: boolean
+            type: object
+            x-ui-format: refresh-button
+          timePicker:
+            properties:
+              end:
+                type: string
+              start:
+                type: string
+            type: object
+            x-ui-format: time-picker
+        type: object
+        x-ui-delete:
+          x-ui-delete-api-path: /apis/k8s/ui.accordions.co.kr/v1beta1/clusterdashboards/sample-ai-cluster-dashbaord
+          x-ui-delete-redirect-url: monitorings/monitoring-dashboard
+        x-ui-displayName: 샘플 AI 클러스터 대시보드
+        x-ui-format: header
+      values:
+        header:
+          badgeText: Dashboard
+          text: 샘플 AI 클러스터 대시보드
+        refreshButton:
+          refreshTime:
+            value: :refreshTime
+            x-ui-type: globalValues
+          showButtonSchema: true
+        timePicker:
+          end:
+            value: :end
+            x-ui-type: globalValues
+          start:
+            value: :start
+            x-ui-type: globalValues
+  - metadata:
+      name: top-chart-1780029289696
+    spec:
+      apis:
+      - method: get
+        name: topk-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: topk%285%2C%28sum%28rate%28node_cpu_seconds_total%7Bmode%21%3D%22idle%22%7D%5B5m%5D%29%29+by+%28instance%29+%2F+count%28node_cpu_seconds_total%7Bmode%3D%22idle%22%7D%29+by+%28instance%29+%2A+100%29%29
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        autoH: true
+        h: 35
+        w: 4
+        xaxis: 0
+        yaxis: 0
+      previewValues:
+        progressItem:
+        - name: node1
+          value: 70
+        - name: node2
+          value: 50
+        subTitle: '단위: %'
+        suffix: '%'
+        title: CPU 사용량 Top 7
+        unit: '%'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: topk-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    {{- if $v.queries.query.query }}
+                    query: |-
+                      {{ with $v.queries.options }}
+                        {{- if eq .order "desc" }}
+                          {{- printf "topk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{ else }}
+                          {{- printf "bottomk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{- end }}
+                      {{- end }}
+                    {{- else }}
+                    query: ""
+                    {{- end }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                title: {{ $v.chartTitle | default "" | quote }}
+                subTitle: {{ $v.subTitle | default "" | quote }}
+                progressItem:
+                  x-ui-api-base: |-
+                    ."topk-query".data.result | map({
+                      "name": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: topk-query
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                  options: {}
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+                  options:
+                    type: object
+                    x-ui-collapsable: true
+                    x-ui-displayName: 옵션
+                    properties:
+                      num:
+                        type: number
+                        x-ui-displayName: 개수(N)
+                        default: 5
+                      order:
+                        type: string
+                        x-ui-displayName: 순서
+                        x-ui-enum-displayName:
+                        - 내림차순 (Top N)
+                        - 오름차순 (Bottom N)
+                        default: desc
+                        enum:
+                        - desc
+                        - asc
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+          values:
+            chartTitle: 노드별 CPU 사용률 (TOP 5)
+            queries:
+              metricLabel: instance
+              options:
+                num: 5
+                order: desc
+              query:
+                query: sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) by (instance)
+                  / count(node_cpu_seconds_total{mode="idle"}) by (instance) * 100
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+      valueSchema:
+        properties:
+          progressItem:
+            type: array
+          subTitle:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          title:
+            type: string
+          unit:
+            enum:
+            - cpu
+            - memory
+            type: string
+        type: object
+        x-ui-displayName: Top 차트
+        x-ui-format: top-chart
+      values:
+        progressItem:
+          x-ui-api-base: |-
+            ."topk-query".data.result | map({
+              "name": (.metric."instance"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: topk-query
+          x-ui-type: apis
+        subTitle: ""
+        suffix: '%'
+        title: 노드별 CPU 사용률 (TOP 5)
+  - metadata:
+      name: top-chart-1780029330349
+    spec:
+      apis:
+      - method: get
+        name: topk-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: topk%285%2C%28%28sum+by+%28instance%29+%28node_memory_MemTotal_bytes+-+node_memory_MemAvailable_bytes%29%29+%2F+sum+by+%28instance%29+%28node_memory_MemTotal_bytes%29+%2A+100%29%29
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        autoH: true
+        h: 35
+        w: 4
+        xaxis: 4
+        yaxis: 0
+      previewValues:
+        progressItem:
+        - name: node1
+          value: 70
+        - name: node2
+          value: 50
+        subTitle: '단위: %'
+        suffix: '%'
+        title: CPU 사용량 Top 7
+        unit: '%'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: topk-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    {{- if $v.queries.query.query }}
+                    query: |-
+                      {{ with $v.queries.options }}
+                        {{- if eq .order "desc" }}
+                          {{- printf "topk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{ else }}
+                          {{- printf "bottomk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{- end }}
+                      {{- end }}
+                    {{- else }}
+                    query: ""
+                    {{- end }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                title: {{ $v.chartTitle | default "" | quote }}
+                subTitle: {{ $v.subTitle | default "" | quote }}
+                progressItem:
+                  x-ui-api-base: |-
+                    ."topk-query".data.result | map({
+                      "name": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: topk-query
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                  options: {}
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+                  options:
+                    type: object
+                    x-ui-collapsable: true
+                    x-ui-displayName: 옵션
+                    properties:
+                      num:
+                        type: number
+                        x-ui-displayName: 개수(N)
+                        default: 5
+                      order:
+                        type: string
+                        x-ui-displayName: 순서
+                        x-ui-enum-displayName:
+                        - 내림차순 (Top N)
+                        - 오름차순 (Bottom N)
+                        default: desc
+                        enum:
+                        - desc
+                        - asc
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+          values:
+            chartTitle: 노드별 Memory 사용률 (TOP 5)
+            queries:
+              metricLabel: instance
+              options:
+                num: 5
+                order: desc
+              query:
+                query: (sum by (instance) (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes))
+                  / sum by (instance) (node_memory_MemTotal_bytes) * 100
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+      valueSchema:
+        properties:
+          progressItem:
+            type: array
+          subTitle:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          title:
+            type: string
+          unit:
+            enum:
+            - cpu
+            - memory
+            type: string
+        type: object
+        x-ui-displayName: Top 차트
+        x-ui-format: top-chart
+      values:
+        progressItem:
+          x-ui-api-base: |-
+            ."topk-query".data.result | map({
+              "name": (.metric."instance"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: topk-query
+          x-ui-type: apis
+        subTitle: ""
+        suffix: '%'
+        title: 노드별 Memory 사용률 (TOP 5)
+  - metadata:
+      name: top-chart-1780030082457
+    spec:
+      apis:
+      - method: get
+        name: topk-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: topk%285%2C%28%281+-+%28sum+by+%28instance%29+%28node_filesystem_avail_bytes%7Bmountpoint%3D%22%2F%22%2C+fstype%21~%22tmpfs%7Coverlay%22%7D%29+%2F+sum+by+%28instance%29+%28node_filesystem_size_bytes%7Bmountpoint%3D%22%2F%22%2C+fstype%21~%22tmpfs%7Coverlay%22%7D%29%29%29+%2A+100%29%29
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        autoH: true
+        h: 35
+        w: 4
+        xaxis: 8
+        yaxis: 0
+      previewValues:
+        progressItem:
+        - name: node1
+          value: 70
+        - name: node2
+          value: 50
+        subTitle: '단위: %'
+        suffix: '%'
+        title: CPU 사용량 Top 7
+        unit: '%'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: topk-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    {{- if $v.queries.query.query }}
+                    query: |-
+                      {{ with $v.queries.options }}
+                        {{- if eq .order "desc" }}
+                          {{- printf "topk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{ else }}
+                          {{- printf "bottomk(%s,(%s))" (.num) ($v.queries.query.query) | urlquery -}}
+                        {{- end }}
+                      {{- end }}
+                    {{- else }}
+                    query: ""
+                    {{- end }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                title: {{ $v.chartTitle | default "" | quote }}
+                subTitle: {{ $v.subTitle | default "" | quote }}
+                progressItem:
+                  x-ui-api-base: |-
+                    ."topk-query".data.result | map({
+                      "name": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: topk-query
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                  options: {}
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+                  options:
+                    type: object
+                    x-ui-collapsable: true
+                    x-ui-displayName: 옵션
+                    properties:
+                      num:
+                        type: number
+                        x-ui-displayName: 개수(N)
+                        default: 5
+                      order:
+                        type: string
+                        x-ui-displayName: 순서
+                        x-ui-enum-displayName:
+                        - 내림차순 (Top N)
+                        - 오름차순 (Bottom N)
+                        default: desc
+                        enum:
+                        - desc
+                        - asc
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+          values:
+            chartTitle: 노드별 Disk 사용률 (TOP 5)
+            queries:
+              metricLabel: instance
+              options:
+                num: 5
+                order: desc
+              query:
+                query: (1 - (sum by (instance) (node_filesystem_avail_bytes{mountpoint="/",
+                  fstype!~"tmpfs|overlay"}) / sum by (instance) (node_filesystem_size_bytes{mountpoint="/",
+                  fstype!~"tmpfs|overlay"}))) * 100
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+      valueSchema:
+        properties:
+          progressItem:
+            type: array
+          subTitle:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          title:
+            type: string
+          unit:
+            enum:
+            - cpu
+            - memory
+            type: string
+        type: object
+        x-ui-displayName: Top 차트
+        x-ui-format: top-chart
+      values:
+        progressItem:
+          x-ui-api-base: |-
+            ."topk-query".data.result | map({
+              "name": (.metric."instance"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: topk-query
+          x-ui-type: apis
+        subTitle: ""
+        suffix: '%'
+        title: 노드별 Disk 사용률 (TOP 5)
+  - metadata:
+      name: pie-chart-1780030686735
+    spec:
+      apis:
+      - method: get
+        name: pie-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: count+by+%28Hostname%29+%28DCGM_FI_DEV_GPU_UTIL%29
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        h: 25
+        w: 4
+        xaxis: 0
+        yaxis: 35
+      previewValues:
+        chartData:
+        - label: A
+          value: 30
+        - label: B
+          value: 50
+        - label: C
+          value: 20
+        label: 원형 차트
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: pie-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    query: {{ $v.queries.query.query | default "" | urlquery | quote }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                chartData:
+                  x-ui-api-base: |-
+                    ."pie-query".data.result | map({
+                      "label": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: pie-query
+                  x-ui-type: apis
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+          values:
+            chartTitle: 차트
+            queries:
+              metricLabel: Hostname
+              query:
+                query: count by (Hostname) (DCGM_FI_DEV_GPU_UTIL)
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          subLabel:
+            type: string
+        type: object
+        x-ui-displayName: ""
+        x-ui-format: pie-chart
+      values:
+        chartData:
+          x-ui-api-base: |-
+            ."pie-query".data.result | map({
+              "label": (.metric."Hostname"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: pie-query
+          x-ui-type: apis
+        label: 차트
+        subLabel: ""
+  - metadata:
+      name: pie-chart-1780031691239
+    spec:
+      apis:
+      - method: get
+        name: pie-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: topk%285%2C+%0A++%28sum+by+%28namespace%2C+pod%29+%28DCGM_FI_DEV_FB_USED%29+%0A++%2F+%0A++sum+by+%28namespace%2C+pod%29+%28DCGM_FI_DEV_FB_FREE+%2B+DCGM_FI_DEV_FB_USED%29%29+%2A+100+%3E+95%0A%29
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        h: 25
+        w: 4
+        xaxis: 4
+        yaxis: 35
+      previewValues:
+        chartData:
+        - label: A
+          value: 30
+        - label: B
+          value: 50
+        - label: C
+          value: 20
+        label: 원형 차트
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: pie-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    query: {{ $v.queries.query.query | default "" | urlquery | quote }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                chartData:
+                  x-ui-api-base: |-
+                    ."pie-query".data.result | map({
+                      "label": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: pie-query
+                  x-ui-type: apis
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+          values:
+            chartTitle: GPU 메모리 95% 초과 Pod
+            queries:
+              metricLabel: pod
+              query:
+                query: "topk(5, \n  (sum by (namespace, pod) (DCGM_FI_DEV_FB_USED)
+                  \n  / \n  sum by (namespace, pod) (DCGM_FI_DEV_FB_FREE + DCGM_FI_DEV_FB_USED))
+                  * 100 > 95\n)"
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          subLabel:
+            type: string
+        type: object
+        x-ui-displayName: ""
+        x-ui-format: pie-chart
+      values:
+        chartData:
+          x-ui-api-base: |-
+            ."pie-query".data.result | map({
+              "label": (.metric."pod"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: pie-query
+          x-ui-type: apis
+        label: GPU 메모리 95% 초과 Pod
+        subLabel: ""
+  - metadata:
+      name: pie-chart-1780031566019
+    spec:
+      apis:
+      - method: get
+        name: pie-query
+        path: /apis/acc/thanos/v1/query
+        searchParams:
+          query: avg+by+%28pod%29+%28DCGM_FI_DEV_GPU_UTIL%29+%3C+10+and+++sum+by+%28pod%29+%28kube_pod_container_resource_limits%7Bresource%3D%22nvidia.com%2Fgpu%22%7D%29+%3E+0
+          time:
+            type: duration-ms
+            value: :end
+      config:
+        h: 25
+        w: 4
+        xaxis: 8
+        yaxis: 35
+      previewValues:
+        chartData:
+        - label: A
+          value: 30
+        - label: B
+          value: 50
+        - label: C
+          value: 20
+        label: 원형 차트
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            spec:
+              apis:
+                - method: get
+                  name: pie-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query{{ else }}/apis/acc/thanos/v1/query{{ end }}
+                  searchParams:
+                    query: {{ $v.queries.query.query | default "" | urlquery | quote }}
+                    time:
+                      type: duration-ms
+                      value: :end
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                chartData:
+                  x-ui-api-base: |-
+                    ."pie-query".data.result | map({
+                      "label": (.metric."{{ $v.queries.metricLabel }}"? // "unknown"),
+                      "value": (.value[1] | tonumber)
+                    })
+                  x-ui-apis:
+                    - name: pie-query
+                  x-ui-type: apis
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy: custom
+              queries:
+                type: object
+                x-ui-displayName: 쿼리
+                x-ui-boundary: true
+                default:
+                  query:
+                    thanosBaseUrl: apis/acc/thanos/v1
+                    query: ""
+                  metricLabel: ""
+                properties:
+                  query:
+                    type: object
+                    x-ui-format: promql-query
+                    x-ui-width: 8
+                    x-ui-displayName: PromQL
+                    default:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                    properties:
+                      thanosBaseUrl:
+                        type: string
+                        x-ui-displayName: Thanos Base URL
+                        x-ui-placeholder: "http://thanos.svc.cluster.local"
+                      query:
+                        type: string
+                        x-ui-displayName: PromQL
+                  metricLabel:
+                    type: string
+                    x-ui-displayName: 메트릭 라벨
+                    x-ui-width: 4
+                    x-ui-placeholder: "name"
+          values:
+            chartTitle: GPU 사용률 10% Pod
+            queries:
+              metricLabel: pod
+              query:
+                query: avg by (pod) (DCGM_FI_DEV_GPU_UTIL) < 10 and   sum by (pod)
+                  (kube_pod_container_resource_limits{resource="nvidia.com/gpu"})
+                  > 0
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: GPU limits 대비 10% 미만 사용률
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          subLabel:
+            type: string
+        type: object
+        x-ui-displayName: ""
+        x-ui-format: pie-chart
+      values:
+        chartData:
+          x-ui-api-base: |-
+            ."pie-query".data.result | map({
+              "label": (.metric."pod"? // "unknown"),
+              "value": (.value[1] | tonumber)
+            })
+          x-ui-apis:
+          - name: pie-query
+          x-ui-type: apis
+        label: GPU 사용률 10% Pod
+        subLabel: GPU limits 대비 10% 미만 사용률
+  - metadata:
+      name: line-chart-1780030137469
+    spec:
+      apis:
+      - method: get
+        name: prometheus-6IbhyAwb
+        path: /apis/acc/thanos/v1/query_range
+        searchParams:
+          end:
+            type: duration-ms
+            value: :end
+          query: avg+by+%28node%29+%28avg+by+%28UUID%2C+node%29+%28label_replace%28DCGM_FI_DEV_GPU_UTIL%7BHostname%3D~%22.%2B%22%7D+%2F+100+or+DCGM_FI_PROF_GR_ENGINE_ACTIVE%7BHostname%3D~%22.%2B%22%7D%2C+%22node%22%2C+%22%241%22%2C+%22Hostname%22%2C+%22%28.%2A%29%22%29%29%29+%2A+100
+          start:
+            type: duration-ms
+            value: :start
+          step:
+            type: step
+            value:
+            - :start
+            - :end
+      config:
+        h: 25
+        w: 6
+        xaxis: 0
+        yaxis: 60
+      previewValues:
+        chartData:
+          prometheus:
+            data:
+              result:
+              - metric:
+                  pod: A
+                values:
+                - - 1767158550
+                  - "1.6429485124296561"
+                - - 1767158580
+                  - "1.888905511292655"
+                - - 1767158610
+                  - "1.7642983017407392"
+                - - 1767158640
+                  - "1.5835904486852492"
+                - - 1767158670
+                  - "1.5625290635332931"
+                - - 1767158700
+                  - "1.435630195548206"
+                - - 1767158730
+                  - "1.388138625503699"
+                - - 1767158760
+                  - "1.584208356614949"
+                - - 1767158790
+                  - "1.6932114178888258"
+                - - 1767158820
+                  - "1.7199128376593797"
+                - - 1767158850
+                  - "1.49205783781837"
+              - metric:
+                  pod: B
+                values:
+                - - 1767158760
+                  - "0.3452693634700996"
+                - - 1767158820
+                  - "0.34556662148485584"
+              - metric:
+                  pod: C
+                values:
+                - - 1767158550
+                  - "1.0348516183370655"
+                - - 1767158580
+                  - "0.971488012281501"
+                - - 1767158610
+                  - "1.0159182466073953"
+                - - 1767158640
+                  - "0.9713588203370347"
+                - - 1767158670
+                  - "1.0138857812665973"
+                - - 1767158700
+                  - "0.9385176533407368"
+                - - 1767158730
+                  - "1.04900022703708"
+                - - 1767158760
+                  - "1.0453154171962524"
+                - - 1767158790
+                  - "1.0492443833445173"
+                - - 1767158820
+                  - "0.9982962688814884"
+                - - 1767158850
+                  - "0.9689754963037558"
+              resultType: matrix
+            status: success
+        label: 라인 차트
+        metricLabels:
+        - '{{ pod }}'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            {{- $apiNames := list -}}
+            spec:
+              apis:
+                {{- range $i, $q := $v.queries }}
+                - method: get
+                  {{- $apiNames = append $apiNames (printf "prometheus-%s" (randAlphaNum 8)) }}
+                  name: {{ index $apiNames $i }}
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    query: {{ $q.query.query | default "" | urlquery | quote }}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+                {{- if $v.useLimit | and (eq $v.limits.limitType "dynamic") }}
+                - method: get
+                  name: limit-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    {{- with $v.limits.limitData }}
+                    {{ if and (not .upper.query.query) (not .lower.query.query) }}query: ""{{ else }}query: |-
+                      {{ end -}}
+                      {{ if .upper.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"upper\", \"\", \"\")" (.upper.query.query) | urlquery }}{{- end }}
+                      {{- if and .upper.query.query .lower.query.query }}{{ urlquery " or " }}{{ end }}
+                      {{- if .lower.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"lower\", \"\", \"\")" (.lower.query.query) | urlquery }}{{ end }}
+                    {{- end}}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                metricLabels:
+                  {{- range $q := $v.queries }}
+                  - {{ $q.metricLabel | default "" | quote }}
+                  {{- end }}
+                chartData:
+                  x-ui-api-base: .
+                  x-ui-apis:
+                  {{- range $n := $apiNames }}
+                    - name: {{ $n }}
+                  {{- end }}
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+                {{- if $v.useLimit }}
+                  {{- with $v.limits }}
+                limitType: {{ .limitType }}
+                    {{- if eq $v.limits.limitType "dynamic"}}
+                limitData:
+                  x-ui-api-base: ."limit-query"
+                  x-ui-apis:
+                    - name: limit-query
+                  x-ui-type: apis
+                upperLimitLabel: {{ .limitData.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitData.lower.label | default "" | quote }}
+                    {{- end }}
+                    {{- if eq $v.limits.limitType "static"}}
+                upperLimitValue: {{ .limitValues.upper.value | default 0 }}
+                lowerLimitValue: {{ .limitValues.lower.value | default 0 }}
+                upperLimitLabel: {{ .limitValues.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitValues.lower.label | default "" | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy:
+                    - custom
+              queries:
+                type: array
+                x-ui-format: table
+                x-ui-table-width: 8 4
+                x-ui-displayName: 쿼리
+                default:
+                  - metricLabel: ""
+                    query:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                items:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      x-ui-format: promql-query
+                      x-ui-displayName: PromQL
+                      default:
+                        thanosBaseUrl: apis/acc/thanos/v1
+                        query: ""
+                      properties:
+                        thanosBaseUrl:
+                          type: string
+                          x-ui-displayName: Thanos Base URL
+                          x-ui-placeholder: "http://thanos.svc.cluster.local"
+                        query:
+                          type: string
+                          x-ui-displayName: PromQL
+                    metricLabel:
+                      type: string
+                      x-ui-displayName: 라벨
+                      x-ui-placeholder: "{{ name }}"
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+              useLimit:
+                type: boolean
+                x-ui-format: switch
+                x-ui-displayName: 리밋
+                default: false
+              limits:
+                type: object
+                x-ui-displayName: false
+                x-ui-field-dependencies:
+                  useLimit:
+                    - true
+                properties:
+                  limitType:
+                    type: string
+                    x-ui-format: radio
+                    default: dynamic
+                    enum:
+                      - dynamic
+                      - static
+                    x-ui-enum-displayName:
+                      - 쿼리
+                      - 상수
+                    x-ui-displayName: 타입
+                  limitData:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - dynamic
+                    properties:
+                      upper:
+                        type: object
+                        x-ui-displayName: 상한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                      lower:
+                        type: object
+                        x-ui-displayName: 하한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                  limitValues:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - static
+                    properties:
+                      upper:
+                        x-ui-displayName: 상한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. limits
+                            x-ui-width: 6
+                            type: string
+                      lower:
+                        x-ui-displayName: 하한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. requests
+                            x-ui-width: 6
+                            type: string
+          values:
+            chartTitle: 노드별 GPU 사용률
+            queries:
+            - metricLabel: ""
+              query:
+                query: avg by (node) (avg by (UUID, node) (label_replace(DCGM_FI_DEV_GPU_UTIL{Hostname=~".+"}
+                  / 100 or DCGM_FI_PROF_GR_ENGINE_ACTIVE{Hostname=~".+"}, "node",
+                  "$1", "Hostname", "(.*)"))) * 100
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+            useLimit: false
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          limitData:
+            type: object
+          limitType:
+            type: string
+          lowerLimitLabel:
+            type: string
+          lowerLimitValue:
+            type: number
+          metricLabels:
+            items:
+              type: string
+            type: array
+          subLabel:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          unit:
+            description: '단위: cpu, memory'
+            enum:
+            - cpu
+            - memory
+            type: string
+          upperLimitLabel:
+            type: string
+          upperLimitValue:
+            type: number
+        type: object
+        x-ui-format: line-chart
+      values:
+        chartData:
+          x-ui-api-base: .
+          x-ui-apis:
+          - name: prometheus-6IbhyAwb
+          x-ui-type: apis
+        label: 노드별 GPU 사용률
+        metricLabels:
+        - ""
+        subLabel: ""
+        suffix: '%'
+  - metadata:
+      name: line-chart-1780030179364
+    spec:
+      apis:
+      - method: get
+        name: prometheus-cUVMloIr
+        path: /apis/acc/thanos/v1/query_range
+        searchParams:
+          end:
+            type: duration-ms
+            value: :end
+          query: sum+by+%28node%29+%28sum+by+%28UUID%2C+node%29+%28label_replace%28DCGM_FI_DEV_FB_USED%7BHostname%3D~%22.%2B%22%7D%2C+%22node%22%2C+%22%241%22%2C+%22Hostname%22%2C+%22%28.%2A%29%22%29%29%29+%2F+%28sum+by+%28node%29+%28sum+by+%28UUID%2C+node%29+%28label_replace%28DCGM_FI_DEV_FB_TOTAL%7BHostname%3D~%22.%2B%22%7D%2C+%22node%22%2C+%22%241%22%2C+%22Hostname%22%2C+%22%28.%2A%29%22%29%29%29+-+sum+by+%28node%29+%28sum+by+%28UUID%2C+node%29+%28label_replace%28DCGM_FI_DEV_FB_RESERVED%7BHostname%3D~%22.%2B%22%7D%2C+%22node%22%2C+%22%241%22%2C+%22Hostname%22%2C+%22%28.%2A%29%22%29%29%29%29+%2A+100
+          start:
+            type: duration-ms
+            value: :start
+          step:
+            type: step
+            value:
+            - :start
+            - :end
+      config:
+        h: 25
+        w: 6
+        xaxis: 6
+        yaxis: 60
+      previewValues:
+        chartData:
+          prometheus:
+            data:
+              result:
+              - metric:
+                  pod: A
+                values:
+                - - 1767158550
+                  - "1.6429485124296561"
+                - - 1767158580
+                  - "1.888905511292655"
+                - - 1767158610
+                  - "1.7642983017407392"
+                - - 1767158640
+                  - "1.5835904486852492"
+                - - 1767158670
+                  - "1.5625290635332931"
+                - - 1767158700
+                  - "1.435630195548206"
+                - - 1767158730
+                  - "1.388138625503699"
+                - - 1767158760
+                  - "1.584208356614949"
+                - - 1767158790
+                  - "1.6932114178888258"
+                - - 1767158820
+                  - "1.7199128376593797"
+                - - 1767158850
+                  - "1.49205783781837"
+              - metric:
+                  pod: B
+                values:
+                - - 1767158760
+                  - "0.3452693634700996"
+                - - 1767158820
+                  - "0.34556662148485584"
+              - metric:
+                  pod: C
+                values:
+                - - 1767158550
+                  - "1.0348516183370655"
+                - - 1767158580
+                  - "0.971488012281501"
+                - - 1767158610
+                  - "1.0159182466073953"
+                - - 1767158640
+                  - "0.9713588203370347"
+                - - 1767158670
+                  - "1.0138857812665973"
+                - - 1767158700
+                  - "0.9385176533407368"
+                - - 1767158730
+                  - "1.04900022703708"
+                - - 1767158760
+                  - "1.0453154171962524"
+                - - 1767158790
+                  - "1.0492443833445173"
+                - - 1767158820
+                  - "0.9982962688814884"
+                - - 1767158850
+                  - "0.9689754963037558"
+              resultType: matrix
+            status: success
+        label: 라인 차트
+        metricLabels:
+        - '{{ pod }}'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            {{- $apiNames := list -}}
+            spec:
+              apis:
+                {{- range $i, $q := $v.queries }}
+                - method: get
+                  {{- $apiNames = append $apiNames (printf "prometheus-%s" (randAlphaNum 8)) }}
+                  name: {{ index $apiNames $i }}
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    query: {{ $q.query.query | default "" | urlquery | quote }}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+                {{- if $v.useLimit | and (eq $v.limits.limitType "dynamic") }}
+                - method: get
+                  name: limit-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    {{- with $v.limits.limitData }}
+                    {{ if and (not .upper.query.query) (not .lower.query.query) }}query: ""{{ else }}query: |-
+                      {{ end -}}
+                      {{ if .upper.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"upper\", \"\", \"\")" (.upper.query.query) | urlquery }}{{- end }}
+                      {{- if and .upper.query.query .lower.query.query }}{{ urlquery " or " }}{{ end }}
+                      {{- if .lower.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"lower\", \"\", \"\")" (.lower.query.query) | urlquery }}{{ end }}
+                    {{- end}}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                metricLabels:
+                  {{- range $q := $v.queries }}
+                  - {{ $q.metricLabel | default "" | quote }}
+                  {{- end }}
+                chartData:
+                  x-ui-api-base: .
+                  x-ui-apis:
+                  {{- range $n := $apiNames }}
+                    - name: {{ $n }}
+                  {{- end }}
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+                {{- if $v.useLimit }}
+                  {{- with $v.limits }}
+                limitType: {{ .limitType }}
+                    {{- if eq $v.limits.limitType "dynamic"}}
+                limitData:
+                  x-ui-api-base: ."limit-query"
+                  x-ui-apis:
+                    - name: limit-query
+                  x-ui-type: apis
+                upperLimitLabel: {{ .limitData.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitData.lower.label | default "" | quote }}
+                    {{- end }}
+                    {{- if eq $v.limits.limitType "static"}}
+                upperLimitValue: {{ .limitValues.upper.value | default 0 }}
+                lowerLimitValue: {{ .limitValues.lower.value | default 0 }}
+                upperLimitLabel: {{ .limitValues.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitValues.lower.label | default "" | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy:
+                    - custom
+              queries:
+                type: array
+                x-ui-format: table
+                x-ui-table-width: 8 4
+                x-ui-displayName: 쿼리
+                default:
+                  - metricLabel: ""
+                    query:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                items:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      x-ui-format: promql-query
+                      x-ui-displayName: PromQL
+                      default:
+                        thanosBaseUrl: apis/acc/thanos/v1
+                        query: ""
+                      properties:
+                        thanosBaseUrl:
+                          type: string
+                          x-ui-displayName: Thanos Base URL
+                          x-ui-placeholder: "http://thanos.svc.cluster.local"
+                        query:
+                          type: string
+                          x-ui-displayName: PromQL
+                    metricLabel:
+                      type: string
+                      x-ui-displayName: 라벨
+                      x-ui-placeholder: "{{ name }}"
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+              useLimit:
+                type: boolean
+                x-ui-format: switch
+                x-ui-displayName: 리밋
+                default: false
+              limits:
+                type: object
+                x-ui-displayName: false
+                x-ui-field-dependencies:
+                  useLimit:
+                    - true
+                properties:
+                  limitType:
+                    type: string
+                    x-ui-format: radio
+                    default: dynamic
+                    enum:
+                      - dynamic
+                      - static
+                    x-ui-enum-displayName:
+                      - 쿼리
+                      - 상수
+                    x-ui-displayName: 타입
+                  limitData:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - dynamic
+                    properties:
+                      upper:
+                        type: object
+                        x-ui-displayName: 상한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                      lower:
+                        type: object
+                        x-ui-displayName: 하한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                  limitValues:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - static
+                    properties:
+                      upper:
+                        x-ui-displayName: 상한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. limits
+                            x-ui-width: 6
+                            type: string
+                      lower:
+                        x-ui-displayName: 하한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. requests
+                            x-ui-width: 6
+                            type: string
+          values:
+            chartTitle: 노드별 GPU 메모리 사용률
+            queries:
+            - metricLabel: ""
+              query:
+                query: sum by (node) (sum by (UUID, node) (label_replace(DCGM_FI_DEV_FB_USED{Hostname=~".+"},
+                  "node", "$1", "Hostname", "(.*)"))) / (sum by (node) (sum by (UUID,
+                  node) (label_replace(DCGM_FI_DEV_FB_TOTAL{Hostname=~".+"}, "node",
+                  "$1", "Hostname", "(.*)"))) - sum by (node) (sum by (UUID, node)
+                  (label_replace(DCGM_FI_DEV_FB_RESERVED{Hostname=~".+"}, "node",
+                  "$1", "Hostname", "(.*)")))) * 100
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+            useLimit: false
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          limitData:
+            type: object
+          limitType:
+            type: string
+          lowerLimitLabel:
+            type: string
+          lowerLimitValue:
+            type: number
+          metricLabels:
+            items:
+              type: string
+            type: array
+          subLabel:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          unit:
+            description: '단위: cpu, memory'
+            enum:
+            - cpu
+            - memory
+            type: string
+          upperLimitLabel:
+            type: string
+          upperLimitValue:
+            type: number
+        type: object
+        x-ui-format: line-chart
+      values:
+        chartData:
+          x-ui-api-base: .
+          x-ui-apis:
+          - name: prometheus-cUVMloIr
+          x-ui-type: apis
+        label: 노드별 GPU 메모리 사용률
+        metricLabels:
+        - ""
+        subLabel: ""
+        suffix: '%'
+  - metadata:
+      name: line-chart-1780030234783
+    spec:
+      apis:
+      - method: get
+        name: prometheus-TPBy1Dq3
+        path: /apis/acc/thanos/v1/query_range
+        searchParams:
+          end:
+            type: duration-ms
+            value: :end
+          query: avg+by+%28UUID%2C+GPU_I_PROFILE%2C+GPU_I_ID%29+%28DCGM_FI_DEV_FB_USED_PERCENT%7BGPU_I_ID%21%3D%22%22%7D%29
+          start:
+            type: duration-ms
+            value: :start
+          step:
+            type: step
+            value:
+            - :start
+            - :end
+      config:
+        h: 25
+        w: 6
+        xaxis: 0
+        yaxis: 85
+      previewValues:
+        chartData:
+          prometheus:
+            data:
+              result:
+              - metric:
+                  pod: A
+                values:
+                - - 1767158550
+                  - "1.6429485124296561"
+                - - 1767158580
+                  - "1.888905511292655"
+                - - 1767158610
+                  - "1.7642983017407392"
+                - - 1767158640
+                  - "1.5835904486852492"
+                - - 1767158670
+                  - "1.5625290635332931"
+                - - 1767158700
+                  - "1.435630195548206"
+                - - 1767158730
+                  - "1.388138625503699"
+                - - 1767158760
+                  - "1.584208356614949"
+                - - 1767158790
+                  - "1.6932114178888258"
+                - - 1767158820
+                  - "1.7199128376593797"
+                - - 1767158850
+                  - "1.49205783781837"
+              - metric:
+                  pod: B
+                values:
+                - - 1767158760
+                  - "0.3452693634700996"
+                - - 1767158820
+                  - "0.34556662148485584"
+              - metric:
+                  pod: C
+                values:
+                - - 1767158550
+                  - "1.0348516183370655"
+                - - 1767158580
+                  - "0.971488012281501"
+                - - 1767158610
+                  - "1.0159182466073953"
+                - - 1767158640
+                  - "0.9713588203370347"
+                - - 1767158670
+                  - "1.0138857812665973"
+                - - 1767158700
+                  - "0.9385176533407368"
+                - - 1767158730
+                  - "1.04900022703708"
+                - - 1767158760
+                  - "1.0453154171962524"
+                - - 1767158790
+                  - "1.0492443833445173"
+                - - 1767158820
+                  - "0.9982962688814884"
+                - - 1767158850
+                  - "0.9689754963037558"
+              resultType: matrix
+            status: success
+        label: 라인 차트
+        metricLabels:
+        - '{{ pod }}'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            {{- $apiNames := list -}}
+            spec:
+              apis:
+                {{- range $i, $q := $v.queries }}
+                - method: get
+                  {{- $apiNames = append $apiNames (printf "prometheus-%s" (randAlphaNum 8)) }}
+                  name: {{ index $apiNames $i }}
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    query: {{ $q.query.query | default "" | urlquery | quote }}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+                {{- if $v.useLimit | and (eq $v.limits.limitType "dynamic") }}
+                - method: get
+                  name: limit-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    {{- with $v.limits.limitData }}
+                    {{ if and (not .upper.query.query) (not .lower.query.query) }}query: ""{{ else }}query: |-
+                      {{ end -}}
+                      {{ if .upper.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"upper\", \"\", \"\")" (.upper.query.query) | urlquery }}{{- end }}
+                      {{- if and .upper.query.query .lower.query.query }}{{ urlquery " or " }}{{ end }}
+                      {{- if .lower.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"lower\", \"\", \"\")" (.lower.query.query) | urlquery }}{{ end }}
+                    {{- end}}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                metricLabels:
+                  {{- range $q := $v.queries }}
+                  - {{ $q.metricLabel | default "" | quote }}
+                  {{- end }}
+                chartData:
+                  x-ui-api-base: .
+                  x-ui-apis:
+                  {{- range $n := $apiNames }}
+                    - name: {{ $n }}
+                  {{- end }}
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+                {{- if $v.useLimit }}
+                  {{- with $v.limits }}
+                limitType: {{ .limitType }}
+                    {{- if eq $v.limits.limitType "dynamic"}}
+                limitData:
+                  x-ui-api-base: ."limit-query"
+                  x-ui-apis:
+                    - name: limit-query
+                  x-ui-type: apis
+                upperLimitLabel: {{ .limitData.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitData.lower.label | default "" | quote }}
+                    {{- end }}
+                    {{- if eq $v.limits.limitType "static"}}
+                upperLimitValue: {{ .limitValues.upper.value | default 0 }}
+                lowerLimitValue: {{ .limitValues.lower.value | default 0 }}
+                upperLimitLabel: {{ .limitValues.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitValues.lower.label | default "" | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy:
+                    - custom
+              queries:
+                type: array
+                x-ui-format: table
+                x-ui-table-width: 8 4
+                x-ui-displayName: 쿼리
+                default:
+                  - metricLabel: ""
+                    query:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                items:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      x-ui-format: promql-query
+                      x-ui-displayName: PromQL
+                      default:
+                        thanosBaseUrl: apis/acc/thanos/v1
+                        query: ""
+                      properties:
+                        thanosBaseUrl:
+                          type: string
+                          x-ui-displayName: Thanos Base URL
+                          x-ui-placeholder: "http://thanos.svc.cluster.local"
+                        query:
+                          type: string
+                          x-ui-displayName: PromQL
+                    metricLabel:
+                      type: string
+                      x-ui-displayName: 라벨
+                      x-ui-placeholder: "{{ name }}"
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+              useLimit:
+                type: boolean
+                x-ui-format: switch
+                x-ui-displayName: 리밋
+                default: false
+              limits:
+                type: object
+                x-ui-displayName: false
+                x-ui-field-dependencies:
+                  useLimit:
+                    - true
+                properties:
+                  limitType:
+                    type: string
+                    x-ui-format: radio
+                    default: dynamic
+                    enum:
+                      - dynamic
+                      - static
+                    x-ui-enum-displayName:
+                      - 쿼리
+                      - 상수
+                    x-ui-displayName: 타입
+                  limitData:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - dynamic
+                    properties:
+                      upper:
+                        type: object
+                        x-ui-displayName: 상한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                      lower:
+                        type: object
+                        x-ui-displayName: 하한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                  limitValues:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - static
+                    properties:
+                      upper:
+                        x-ui-displayName: 상한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. limits
+                            x-ui-width: 6
+                            type: string
+                      lower:
+                        x-ui-displayName: 하한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. requests
+                            x-ui-width: 6
+                            type: string
+          values:
+            chartTitle: MIG 인스턴스별 VRAM 사용률
+            queries:
+            - metricLabel: ""
+              query:
+                query: avg by (UUID, GPU_I_PROFILE, GPU_I_ID) (DCGM_FI_DEV_FB_USED_PERCENT{GPU_I_ID!=""})
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+            useLimit: false
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          limitData:
+            type: object
+          limitType:
+            type: string
+          lowerLimitLabel:
+            type: string
+          lowerLimitValue:
+            type: number
+          metricLabels:
+            items:
+              type: string
+            type: array
+          subLabel:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          unit:
+            description: '단위: cpu, memory'
+            enum:
+            - cpu
+            - memory
+            type: string
+          upperLimitLabel:
+            type: string
+          upperLimitValue:
+            type: number
+        type: object
+        x-ui-format: line-chart
+      values:
+        chartData:
+          x-ui-api-base: .
+          x-ui-apis:
+          - name: prometheus-TPBy1Dq3
+          x-ui-type: apis
+        label: MIG 인스턴스별 VRAM 사용률
+        metricLabels:
+        - ""
+        subLabel: ""
+        suffix: '%'
+  - metadata:
+      name: line-chart-1780030275642
+    spec:
+      apis:
+      - method: get
+        name: prometheus-9WqKh3mY
+        path: /apis/acc/thanos/v1/query_range
+        searchParams:
+          end:
+            type: duration-ms
+            value: :end
+          query: avg+by+%28UUID%2C+GPU_I_PROFILE%2C+GPU_I_ID%2C+namespace%2C+pod%29+%28label_replace%28label_replace%28DCGM_FI_DEV_FB_USED_PERCENT%7BGPU_I_ID%21%3D%22%22%2C+exported_pod%21%3D%22%22%7D%2C+%22pod%22%2C+%22%241%22%2C+%22exported_pod%22%2C+%22%28.%2A%29%22%29%2C+%22namespace%22%2C+%22%241%22%2C+%22exported_namespace%22%2C+%22%28.%2A%29%22%29%29
+          start:
+            type: duration-ms
+            value: :start
+          step:
+            type: step
+            value:
+            - :start
+            - :end
+      config:
+        h: 25
+        w: 6
+        xaxis: 6
+        yaxis: 85
+      previewValues:
+        chartData:
+          prometheus:
+            data:
+              result:
+              - metric:
+                  pod: A
+                values:
+                - - 1767158550
+                  - "1.6429485124296561"
+                - - 1767158580
+                  - "1.888905511292655"
+                - - 1767158610
+                  - "1.7642983017407392"
+                - - 1767158640
+                  - "1.5835904486852492"
+                - - 1767158670
+                  - "1.5625290635332931"
+                - - 1767158700
+                  - "1.435630195548206"
+                - - 1767158730
+                  - "1.388138625503699"
+                - - 1767158760
+                  - "1.584208356614949"
+                - - 1767158790
+                  - "1.6932114178888258"
+                - - 1767158820
+                  - "1.7199128376593797"
+                - - 1767158850
+                  - "1.49205783781837"
+              - metric:
+                  pod: B
+                values:
+                - - 1767158760
+                  - "0.3452693634700996"
+                - - 1767158820
+                  - "0.34556662148485584"
+              - metric:
+                  pod: C
+                values:
+                - - 1767158550
+                  - "1.0348516183370655"
+                - - 1767158580
+                  - "0.971488012281501"
+                - - 1767158610
+                  - "1.0159182466073953"
+                - - 1767158640
+                  - "0.9713588203370347"
+                - - 1767158670
+                  - "1.0138857812665973"
+                - - 1767158700
+                  - "0.9385176533407368"
+                - - 1767158730
+                  - "1.04900022703708"
+                - - 1767158760
+                  - "1.0453154171962524"
+                - - 1767158790
+                  - "1.0492443833445173"
+                - - 1767158820
+                  - "0.9982962688814884"
+                - - 1767158850
+                  - "0.9689754963037558"
+              resultType: matrix
+            status: success
+        label: 라인 차트
+        metricLabels:
+        - '{{ pod }}'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            {{- $apiNames := list -}}
+            spec:
+              apis:
+                {{- range $i, $q := $v.queries }}
+                - method: get
+                  {{- $apiNames = append $apiNames (printf "prometheus-%s" (randAlphaNum 8)) }}
+                  name: {{ index $apiNames $i }}
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    query: {{ $q.query.query | default "" | urlquery | quote }}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+                {{- if $v.useLimit | and (eq $v.limits.limitType "dynamic") }}
+                - method: get
+                  name: limit-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    {{- with $v.limits.limitData }}
+                    {{ if and (not .upper.query.query) (not .lower.query.query) }}query: ""{{ else }}query: |-
+                      {{ end -}}
+                      {{ if .upper.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"upper\", \"\", \"\")" (.upper.query.query) | urlquery }}{{- end }}
+                      {{- if and .upper.query.query .lower.query.query }}{{ urlquery " or " }}{{ end }}
+                      {{- if .lower.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"lower\", \"\", \"\")" (.lower.query.query) | urlquery }}{{ end }}
+                    {{- end}}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                metricLabels:
+                  {{- range $q := $v.queries }}
+                  - {{ $q.metricLabel | default "" | quote }}
+                  {{- end }}
+                chartData:
+                  x-ui-api-base: .
+                  x-ui-apis:
+                  {{- range $n := $apiNames }}
+                    - name: {{ $n }}
+                  {{- end }}
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+                {{- if $v.useLimit }}
+                  {{- with $v.limits }}
+                limitType: {{ .limitType }}
+                    {{- if eq $v.limits.limitType "dynamic"}}
+                limitData:
+                  x-ui-api-base: ."limit-query"
+                  x-ui-apis:
+                    - name: limit-query
+                  x-ui-type: apis
+                upperLimitLabel: {{ .limitData.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitData.lower.label | default "" | quote }}
+                    {{- end }}
+                    {{- if eq $v.limits.limitType "static"}}
+                upperLimitValue: {{ .limitValues.upper.value | default 0 }}
+                lowerLimitValue: {{ .limitValues.lower.value | default 0 }}
+                upperLimitLabel: {{ .limitValues.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitValues.lower.label | default "" | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy:
+                    - custom
+              queries:
+                type: array
+                x-ui-format: table
+                x-ui-table-width: 8 4
+                x-ui-displayName: 쿼리
+                default:
+                  - metricLabel: ""
+                    query:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                items:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      x-ui-format: promql-query
+                      x-ui-displayName: PromQL
+                      default:
+                        thanosBaseUrl: apis/acc/thanos/v1
+                        query: ""
+                      properties:
+                        thanosBaseUrl:
+                          type: string
+                          x-ui-displayName: Thanos Base URL
+                          x-ui-placeholder: "http://thanos.svc.cluster.local"
+                        query:
+                          type: string
+                          x-ui-displayName: PromQL
+                    metricLabel:
+                      type: string
+                      x-ui-displayName: 라벨
+                      x-ui-placeholder: "{{ name }}"
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+              useLimit:
+                type: boolean
+                x-ui-format: switch
+                x-ui-displayName: 리밋
+                default: false
+              limits:
+                type: object
+                x-ui-displayName: false
+                x-ui-field-dependencies:
+                  useLimit:
+                    - true
+                properties:
+                  limitType:
+                    type: string
+                    x-ui-format: radio
+                    default: dynamic
+                    enum:
+                      - dynamic
+                      - static
+                    x-ui-enum-displayName:
+                      - 쿼리
+                      - 상수
+                    x-ui-displayName: 타입
+                  limitData:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - dynamic
+                    properties:
+                      upper:
+                        type: object
+                        x-ui-displayName: 상한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                      lower:
+                        type: object
+                        x-ui-displayName: 하한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                  limitValues:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - static
+                    properties:
+                      upper:
+                        x-ui-displayName: 상한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. limits
+                            x-ui-width: 6
+                            type: string
+                      lower:
+                        x-ui-displayName: 하한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. requests
+                            x-ui-width: 6
+                            type: string
+          values:
+            chartTitle: MIG 인스턴스별 VRAM 사용률 - Pod별
+            queries:
+            - metricLabel: ""
+              query:
+                query: avg by (UUID, GPU_I_PROFILE, GPU_I_ID, namespace, pod) (label_replace(label_replace(DCGM_FI_DEV_FB_USED_PERCENT{GPU_I_ID!="",
+                  exported_pod!=""}, "pod", "$1", "exported_pod", "(.*)"), "namespace",
+                  "$1", "exported_namespace", "(.*)"))
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: '%'
+            unit: etc
+            useLimit: false
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          limitData:
+            type: object
+          limitType:
+            type: string
+          lowerLimitLabel:
+            type: string
+          lowerLimitValue:
+            type: number
+          metricLabels:
+            items:
+              type: string
+            type: array
+          subLabel:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          unit:
+            description: '단위: cpu, memory'
+            enum:
+            - cpu
+            - memory
+            type: string
+          upperLimitLabel:
+            type: string
+          upperLimitValue:
+            type: number
+        type: object
+        x-ui-format: line-chart
+      values:
+        chartData:
+          x-ui-api-base: .
+          x-ui-apis:
+          - name: prometheus-9WqKh3mY
+          x-ui-type: apis
+        label: MIG 인스턴스별 VRAM 사용률 - Pod별
+        metricLabels:
+        - ""
+        subLabel: ""
+        suffix: '%'
+  - metadata:
+      name: line-chart-1780030550248
+    spec:
+      apis:
+      - method: get
+        name: prometheus-UdMVrmJV
+        path: /apis/acc/thanos/v1/query_range
+        searchParams:
+          end:
+            type: duration-ms
+            value: :end
+          query: sum+by+%28node%29+%28avg+by+%28UUID%2C+node%29+%28label_replace%28DCGM_FI_DEV_POWER_USAGE%7BHostname%3D~%22.%2B%22%7D%2C+%22node%22%2C+%22%241%22%2C+%22Hostname%22%2C+%22%28.%2A%29%22%29%29%29
+          start:
+            type: duration-ms
+            value: :start
+          step:
+            type: step
+            value:
+            - :start
+            - :end
+      config:
+        h: 29
+        w: 12
+        xaxis: 0
+        yaxis: 110
+      previewValues:
+        chartData:
+          prometheus:
+            data:
+              result:
+              - metric:
+                  pod: A
+                values:
+                - - 1767158550
+                  - "1.6429485124296561"
+                - - 1767158580
+                  - "1.888905511292655"
+                - - 1767158610
+                  - "1.7642983017407392"
+                - - 1767158640
+                  - "1.5835904486852492"
+                - - 1767158670
+                  - "1.5625290635332931"
+                - - 1767158700
+                  - "1.435630195548206"
+                - - 1767158730
+                  - "1.388138625503699"
+                - - 1767158760
+                  - "1.584208356614949"
+                - - 1767158790
+                  - "1.6932114178888258"
+                - - 1767158820
+                  - "1.7199128376593797"
+                - - 1767158850
+                  - "1.49205783781837"
+              - metric:
+                  pod: B
+                values:
+                - - 1767158760
+                  - "0.3452693634700996"
+                - - 1767158820
+                  - "0.34556662148485584"
+              - metric:
+                  pod: C
+                values:
+                - - 1767158550
+                  - "1.0348516183370655"
+                - - 1767158580
+                  - "0.971488012281501"
+                - - 1767158610
+                  - "1.0159182466073953"
+                - - 1767158640
+                  - "0.9713588203370347"
+                - - 1767158670
+                  - "1.0138857812665973"
+                - - 1767158700
+                  - "0.9385176533407368"
+                - - 1767158730
+                  - "1.04900022703708"
+                - - 1767158760
+                  - "1.0453154171962524"
+                - - 1767158790
+                  - "1.0492443833445173"
+                - - 1767158820
+                  - "0.9982962688814884"
+                - - 1767158850
+                  - "0.9689754963037558"
+              resultType: matrix
+            status: success
+        label: 라인 차트
+        metricLabels:
+        - '{{ pod }}'
+      uiTemplate:
+        metadata: {}
+        spec:
+          template: |-
+            {{- $v := . | default dict -}}
+            {{- $apiNames := list -}}
+            spec:
+              apis:
+                {{- range $i, $q := $v.queries }}
+                - method: get
+                  {{- $apiNames = append $apiNames (printf "prometheus-%s" (randAlphaNum 8)) }}
+                  name: {{ index $apiNames $i }}
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    query: {{ $q.query.query | default "" | urlquery | quote }}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+                {{- if $v.useLimit | and (eq $v.limits.limitType "dynamic") }}
+                - method: get
+                  name: limit-query
+                  path: {{ if eq $v.strategy "custom" }}{{ ($v.externalServer | trimSuffix "/") }}/api/v1/query_range{{ else }}/apis/acc/thanos/v1/query_range{{ end }}
+                  searchParams:
+                    {{- with $v.limits.limitData }}
+                    {{ if and (not .upper.query.query) (not .lower.query.query) }}query: ""{{ else }}query: |-
+                      {{ end -}}
+                      {{ if .upper.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"upper\", \"\", \"\")" (.upper.query.query) | urlquery }}{{- end }}
+                      {{- if and .upper.query.query .lower.query.query }}{{ urlquery " or " }}{{ end }}
+                      {{- if .lower.query.query }}{{ printf "label_replace(%s, \"limit_type\", \"lower\", \"\", \"\")" (.lower.query.query) | urlquery }}{{ end }}
+                    {{- end}}
+                    start:
+                      type: duration-ms
+                      value: :start
+                    end:
+                      type: duration-ms
+                      value: :end
+                    step:
+                      type: step
+                      value: [':start', ':end']
+                {{- end }}
+              values:
+                label: {{ $v.chartTitle | default "" | quote }}
+                subLabel: {{ $v.subTitle | default "" | quote }}
+                metricLabels:
+                  {{- range $q := $v.queries }}
+                  - {{ $q.metricLabel | default "" | quote }}
+                  {{- end }}
+                chartData:
+                  x-ui-api-base: .
+                  x-ui-apis:
+                  {{- range $n := $apiNames }}
+                    - name: {{ $n }}
+                  {{- end }}
+                  x-ui-type: apis
+                {{- if eq $v.unit "cpu" }}
+                unit: cpu
+                suffix: {{ $v.cpuSuffix }}
+                {{- else if eq $v.unit "memory" }}
+                unit: memory
+                suffix: {{ $v.memSuffix }}
+                {{- else }}
+                suffix: {{ $v.suffix | default "" | quote }}
+                {{- end}}
+                {{- if $v.useLimit }}
+                  {{- with $v.limits }}
+                limitType: {{ .limitType }}
+                    {{- if eq $v.limits.limitType "dynamic"}}
+                limitData:
+                  x-ui-api-base: ."limit-query"
+                  x-ui-apis:
+                    - name: limit-query
+                  x-ui-type: apis
+                upperLimitLabel: {{ .limitData.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitData.lower.label | default "" | quote }}
+                    {{- end }}
+                    {{- if eq $v.limits.limitType "static"}}
+                upperLimitValue: {{ .limitValues.upper.value | default 0 }}
+                lowerLimitValue: {{ .limitValues.lower.value | default 0 }}
+                upperLimitLabel: {{ .limitValues.upper.label | default "" | quote }}
+                lowerLimitLabel: {{ .limitValues.lower.label | default "" | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end}}
+          valueSchema: |-
+            type: object
+            properties:
+              chartTitle:
+                type: string
+                default: 차트
+                x-ui-displayName: 차트명
+              subTitle:
+                type: string
+                x-ui-displayName: 차트 설명
+              strategy:
+                type: string
+                x-ui-format: radio
+                default: thanos
+                enum:
+                  - thanos
+                  - custom
+                x-ui-enum-displayName:
+                  - 내부 모니터링 서버 (Thanos)
+                  - 외부 서버 지정
+                x-ui-displayName: 모니터링 서버
+              externalServer:
+                type: string
+                x-ui-displayName: 외부 모니터링 서버 주소
+                x-ui-placeholder: https://thanos.svc.cluster.local
+                x-ui-field-dependencies:
+                  strategy:
+                    - custom
+              queries:
+                type: array
+                x-ui-format: table
+                x-ui-table-width: 8 4
+                x-ui-displayName: 쿼리
+                default:
+                  - metricLabel: ""
+                    query:
+                      thanosBaseUrl: apis/acc/thanos/v1
+                      query: ""
+                items:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      x-ui-format: promql-query
+                      x-ui-displayName: PromQL
+                      default:
+                        thanosBaseUrl: apis/acc/thanos/v1
+                        query: ""
+                      properties:
+                        thanosBaseUrl:
+                          type: string
+                          x-ui-displayName: Thanos Base URL
+                          x-ui-placeholder: "http://thanos.svc.cluster.local"
+                        query:
+                          type: string
+                          x-ui-displayName: PromQL
+                    metricLabel:
+                      type: string
+                      x-ui-displayName: 라벨
+                      x-ui-placeholder: "{{ name }}"
+              unit:
+                type: string
+                enum:
+                  - cpu
+                  - memory
+                  - etc
+                description: |-
+                  단위 분류를 선택합니다. "기타" 선택 시 단위 값이 단순하게 데이터 뒤에 붙어 표현됩니다.
+                x-ui-enum-displayName:
+                  - CPU
+                  - 메모리
+                  - 기타
+                x-ui-displayName: 단위 분류
+                x-ui-width: 4
+              cpuSuffix:
+                type: string
+                default: Core
+                enum:
+                  - n
+                  - u
+                  - m
+                  - Core
+                  - k
+                  - M
+                  - G
+                x-ui-enum-displayName:
+                  - 나노 코어(n)
+                  - 마이크로 코어(u)
+                  - 밀리 코어(m)
+                  - 코어(Core)
+                  - 킬로 코어(k)
+                  - 메가 코어(M)
+                  - 기가 코어(G)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: cpu
+              memSuffix:
+                type: string
+                default: Bytes
+                enum:
+                  - Bytes
+                  - Ki
+                  - Mi
+                  - Gi
+                  - Ti
+                  - Pi
+                x-ui-enum-displayName:
+                  - 바이트(Bytes)
+                  - 키비바이트(Ki)
+                  - 메비바이트(Mi)
+                  - 기비바이트(Gi)
+                  - 테비바이트(Ti)
+                  - 페비바이트(Pi)
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: memory
+              suffix:
+                type: string
+                x-ui-displayName: 단위
+                x-ui-width: 8
+                x-ui-field-dependencies:
+                  unit: etc
+              useLimit:
+                type: boolean
+                x-ui-format: switch
+                x-ui-displayName: 리밋
+                default: false
+              limits:
+                type: object
+                x-ui-displayName: false
+                x-ui-field-dependencies:
+                  useLimit:
+                    - true
+                properties:
+                  limitType:
+                    type: string
+                    x-ui-format: radio
+                    default: dynamic
+                    enum:
+                      - dynamic
+                      - static
+                    x-ui-enum-displayName:
+                      - 쿼리
+                      - 상수
+                    x-ui-displayName: 타입
+                  limitData:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - dynamic
+                    properties:
+                      upper:
+                        type: object
+                        x-ui-displayName: 상한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                      lower:
+                        type: object
+                        x-ui-displayName: 하한선
+                        properties:
+                          query:
+                            type: object
+                            x-ui-format: promql-query
+                            x-ui-displayName: PromQL
+                            x-ui-width: 10
+                            default:
+                              thanosBaseUrl: apis/acc/thanos/v1
+                              query: ""
+                            properties:
+                              thanosBaseUrl:
+                                type: string
+                                x-ui-displayName: Thanos Base URL
+                                x-ui-placeholder: "http://thanos.svc.cluster.local"
+                              query:
+                                type: string
+                                x-ui-displayName: PromQL
+                          label:
+                            type: string
+                            x-ui-displayName: 라벨
+                            x-ui-width: 2
+                  limitValues:
+                    type: object
+                    x-ui-displayName: false
+                    x-ui-boundary: true
+                    x-ui-field-dependencies:
+                      limitType:
+                        - static
+                    properties:
+                      upper:
+                        x-ui-displayName: 상한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. limits
+                            x-ui-width: 6
+                            type: string
+                      lower:
+                        x-ui-displayName: 하한선
+                        x-ui-width: 6
+                        type: object
+                        properties:
+                          value:
+                            x-ui-displayName: 값
+                            x-ui-width: 6
+                            type: number
+                          label:
+                            x-ui-displayName: 라벨
+                            x-ui-placeholder: e.g. requests
+                            x-ui-width: 6
+                            type: string
+          values:
+            chartTitle: 노드별 GPU 전력 사용량
+            queries:
+            - metricLabel: ""
+              query:
+                query: sum by (node) (avg by (UUID, node) (label_replace(DCGM_FI_DEV_POWER_USAGE{Hostname=~".+"},
+                  "node", "$1", "Hostname", "(.*)")))
+                thanosBaseUrl: apis/acc/thanos/v1
+            strategy: thanos
+            subTitle: ""
+            suffix: W
+            unit: etc
+            useLimit: false
+      valueSchema:
+        properties:
+          chartData:
+            type: object
+            x-ui-type: matrix
+          label:
+            type: string
+          limitData:
+            type: object
+          limitType:
+            type: string
+          lowerLimitLabel:
+            type: string
+          lowerLimitValue:
+            type: number
+          metricLabels:
+            items:
+              type: string
+            type: array
+          subLabel:
+            type: string
+          suffix:
+            description: |-
+              unit === c  pu 인 경우, 'n' | 'u' | 'm' | 'Core' | 'k' | 'M' | 'G'
+              unit === memory 인 경우, 'Bytes' | 'Ki' | 'Mi' | 'Gi' | 'Ti' | 'Pi'
+            type: string
+          unit:
+            description: '단위: cpu, memory'
+            enum:
+            - cpu
+            - memory
+            type: string
+          upperLimitLabel:
+            type: string
+          upperLimitValue:
+            type: number
+        type: object
+        x-ui-format: line-chart
+      values:
+        chartData:
+          x-ui-api-base: .
+          x-ui-apis:
+          - name: prometheus-UdMVrmJV
+          x-ui-type: apis
+        label: 노드별 GPU 전력 사용량
+        metricLabels:
+        - ""
+        subLabel: ""
+        suffix: W

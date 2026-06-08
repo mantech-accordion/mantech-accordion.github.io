@@ -7,5 +7,4 @@ nav_order: 2
 permalink: /docs/v3/1-accordion
 ---
 
-# 현재 준비 중 입니다.
-
+# 아코디언 v3

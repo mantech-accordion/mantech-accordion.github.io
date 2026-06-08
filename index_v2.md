@@ -1,7 +1,7 @@
 ---
 layout: default
 title: 아코디언 v2
-nav_order: 2
+nav_order: 3
 has_children: true
 permalink: /docs/v2
 ---

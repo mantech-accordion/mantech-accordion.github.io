@@ -9,7 +9,7 @@ permalink: /
 
 (**상세 정보**: [https://accordions.co.kr](https://accordions.co.kr))
 
-![accordion_products.png](/assets/images/accordion/accordion_products.png)
+![accordion_products.png](/assets/images/base/accordion_products.png)
 
 
 # 아코디언 메뉴얼
